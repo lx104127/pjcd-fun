@@ -1,44 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Apple, Banana, Sparkles, Flame } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import type { Food, FoodType, GameStateRow, Position, Stage, DirectionName } from "./types";
-
-type Direction = Position & {
-  name: DirectionName;
-};
-
-type FoodMeta = {
-  label: string;
-  emoji: string;
-  buyback: number;
-  xp: number;
-};
+import type { Food, GameStateRow } from "./types";
 
 const GRID_SIZE = 24;
 const MAX_FOODS = 20;
-const XP_MAX = 1000;
 const CELL_PX = 18;
-const AUTO_INTERVAL_MS = 10000;
-const GAME_SLUG = "pjcd-main";
-
-const DIRECTIONS: Direction[] = [
-  { x: 0, y: -1, name: "上" },
-  { x: 1, y: 0, name: "右" },
-  { x: 0, y: 1, name: "下" },
-  { x: -1, y: 0, name: "左" },
-];
-
-const FOOD_TYPES: Record<FoodType, FoodMeta> = {
-  apple: { label: "苹果", emoji: "🍎", buyback: 0.15, xp: 10 },
-  banana: { label: "香蕉", emoji: "🍌", buyback: 0.3, xp: 15 },
-};
 
 const defaultState: GameStateRow = {
   id: "local-fallback",
-  slug: GAME_SLUG,
+  slug: "pjcd-main",
   stage: "caterpillar",
   xp: 0,
   xp_max: 1000,
@@ -63,73 +36,8 @@ const defaultState: GameStateRow = {
   updated_at: new Date().toISOString(),
 };
 
-function randInt(max: number): number {
-  return Math.floor(Math.random() * max);
-}
-
-function keyOf(pos: Position): string {
+function keyOf(pos: { x: number; y: number }) {
   return `${pos.x}-${pos.y}`;
-}
-
-function samePos(a: Position, b: Position): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
-function clampWrap(n: number): number {
-  if (n < 0) return GRID_SIZE - 1;
-  if (n >= GRID_SIZE) return 0;
-  return n;
-}
-
-function randomFoodType(): FoodType {
-  return Math.random() < 0.75 ? "apple" : "banana";
-}
-
-function turnLeftIndex(idx: number): number {
-  return (idx + 3) % 4;
-}
-
-function turnRightIndex(idx: number): number {
-  return (idx + 1) % 4;
-}
-
-function getEmptyCell(excluded: Position[]): Position | null {
-  const taken = new Set(excluded.map(keyOf));
-  let tries = 0;
-  while (tries < 500) {
-    const cell = { x: randInt(GRID_SIZE), y: randInt(GRID_SIZE) };
-    if (!taken.has(keyOf(cell))) return cell;
-    tries += 1;
-  }
-  return null;
-}
-
-function describeTurn(prevIndex: number, nextIndex: number): string {
-  if (nextIndex === prevIndex) return "前进";
-  if (nextIndex === turnLeftIndex(prevIndex)) return "左转";
-  return "右转";
-}
-
-function buildMove(directionIndex: number) {
-  const candidateIndexes = [directionIndex, turnLeftIndex(directionIndex), turnRightIndex(directionIndex)];
-  const nextDirectionIndex = candidateIndexes[randInt(candidateIndexes.length)];
-  return {
-    nextDirectionIndex,
-    dir: DIRECTIONS[nextDirectionIndex],
-    moveType: describeTurn(directionIndex, nextDirectionIndex),
-  };
-}
-
-function spawnFoodsForState(wormState: Position[], foodState: Food[], stage: Stage): Food[] {
-  const nextFoods = [...foodState];
-  while (nextFoods.length < MAX_FOODS && stage !== "butterfly") {
-    const occupied: Position[] = [...wormState, ...nextFoods.map((f) => ({ x: f.x, y: f.y }))];
-    const cell = getEmptyCell(occupied);
-    if (!cell) break;
-    const type = randomFoodType();
-    nextFoods.push({ ...cell, type, id: `${type}-${Date.now()}-${Math.random()}` });
-  }
-  return nextFoods;
 }
 
 function PixelCell({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
@@ -145,177 +53,40 @@ function PixelCell({ children, className = "" }: { children?: React.ReactNode; c
 
 export default function CaterpillarVolumeSandboxDemo() {
   const [game, setGame] = useState<GameStateRow>(defaultState);
-  const [directionIndex, setDirectionIndex] = useState(1);
-  const [butterflyPulse, setButterflyPulse] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [syncStatus, setSyncStatus] = useState("同步中");
-  const updatingRef = useRef(false);
-  const tickRef = useRef(false);
-
-  const persistState = async (next: GameStateRow) => {
-    updatingRef.current = true;
-    setGame(next);
-    setSyncStatus("同步中");
-    const { error } = await supabase
-      .from("game_state")
-      .update({
-        stage: next.stage,
-        xp: next.xp,
-        xp_max: next.xp_max,
-        buyback: next.buyback,
-        moves: next.moves,
-        seconds_until_move: next.seconds_until_move,
-        eaten_apples: next.eaten_apples,
-        eaten_bananas: next.eaten_bananas,
-        chips_burned: next.chips_burned,
-        last_move: next.last_move,
-        foods: next.foods,
-        worm: next.worm,
-        events: next.events,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("slug", GAME_SLUG);
-
-    updatingRef.current = false;
-    setSyncStatus(error ? "同步失败" : "已同步");
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let alive = true;
+
     const load = async () => {
-      const { data, error } = await supabase.from("game_state").select("*").eq("slug", GAME_SLUG).single();
-      if (!error && data) {
-        const row = data as GameStateRow;
-        const hydrated = {
-          ...row,
-          foods: row.foods ?? [],
-          worm: row.worm?.length ? row.worm : defaultState.worm,
-          events: row.events ?? defaultState.events,
-        };
-        setGame(hydrated);
+      try {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        const data = (await res.json()) as GameStateRow;
+        if (!alive) return;
+        setGame({
+          ...data,
+          foods: data.foods ?? [],
+          worm: data.worm?.length ? data.worm : defaultState.worm,
+          events: data.events ?? defaultState.events,
+        });
+        setError(null);
+      } catch (err) {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : "加载失败");
+      } finally {
+        if (alive) setLoading(false);
       }
-      setLoading(false);
-      setSyncStatus(error ? "读取失败" : "已同步");
     };
 
     load();
-
-    const channel = supabase
-      .channel("pjcd-game-state")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "game_state", filter: `slug=eq.${GAME_SLUG}` },
-        (payload) => {
-          if (updatingRef.current) return;
-          const next = payload.new as GameStateRow;
-          setGame({
-            ...next,
-            foods: next.foods ?? [],
-            worm: next.worm ?? defaultState.worm,
-            events: next.events ?? defaultState.events,
-          });
-          setSyncStatus("已同步");
-        }
-      )
-      .subscribe();
-
+    const timer = window.setInterval(load, 1000);
     return () => {
-      supabase.removeChannel(channel);
+      alive = false;
+      window.clearInterval(timer);
     };
   }, []);
-
-  useEffect(() => {
-    if (game.xp >= XP_MAX && game.stage !== "butterfly" && !tickRef.current) {
-      const next = {
-        ...game,
-        stage: "butterfly" as Stage,
-        chips_burned: true,
-        foods: [],
-        events: ["经验已满：筹码全部销毁，毛毛虫开始破茧成蝶。🦋", ...game.events].slice(0, 10),
-      };
-      setButterflyPulse(true);
-      window.setTimeout(() => setButterflyPulse(false), 1200);
-      persistState(next);
-    }
-  }, [game]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const countdownTimer = window.setInterval(() => {
-      setGame((prev) => ({
-        ...prev,
-        seconds_until_move: prev.stage === "butterfly" ? prev.seconds_until_move : prev.seconds_until_move <= 1 ? 10 : prev.seconds_until_move - 1,
-      }));
-    }, 1000);
-
-    const moveTimer = window.setInterval(async () => {
-      if (tickRef.current) return;
-      tickRef.current = true;
-      const current = gameRef.current;
-      if (current.stage === "butterfly") {
-        tickRef.current = false;
-        return;
-      }
-
-      const head = current.worm[0];
-      const { nextDirectionIndex, dir, moveType } = buildMove(directionIndexRef.current);
-      const nextHead: Position = { x: clampWrap(head.x + dir.x), y: clampWrap(head.y + dir.y) };
-      let nextWorm: Position[] = [nextHead, ...current.worm.slice(0, current.worm.length - 1)];
-      let nextFoods = [...current.foods];
-      let nextBuyback = current.buyback;
-      let nextXp = current.xp;
-      let nextEatenApples = current.eaten_apples;
-      let nextEatenBananas = current.eaten_bananas;
-      const nextEvents = [`Agent 决策触发：根据链上交易情况，毛毛虫${moveType} 1 格，当前朝向 ${dir.name}。`, ...current.events].slice(0, 10);
-      const hitFood = nextFoods.find((food) => samePos(food, nextHead));
-
-      if (hitFood) {
-        const meta = FOOD_TYPES[hitFood.type];
-        nextFoods = nextFoods.filter((food) => food.id !== hitFood.id);
-        nextBuyback = Number((nextBuyback + meta.buyback).toFixed(2));
-        nextXp = Math.min(XP_MAX, nextXp + meta.xp);
-        if (hitFood.type === "apple") nextEatenApples += 1;
-        else nextEatenBananas += 1;
-        nextEvents.unshift(`吃到${meta.label} ${meta.emoji}：触发回购 ${meta.buyback} BNB，经验 +${meta.xp}。`);
-      }
-
-      nextFoods = spawnFoodsForState(nextWorm, nextFoods, current.stage);
-      directionIndexRef.current = nextDirectionIndex;
-
-      const nextState: GameStateRow = {
-        ...current,
-        worm: nextWorm,
-        foods: nextFoods,
-        last_move: `${moveType}（朝${dir.name}）`,
-        moves: current.moves + 1,
-        buyback: nextBuyback,
-        xp: nextXp,
-        eaten_apples: nextEatenApples,
-        eaten_bananas: nextEatenBananas,
-        events: nextEvents.slice(0, 10),
-        seconds_until_move: 10,
-      };
-
-      await persistState(nextState);
-      tickRef.current = false;
-    }, AUTO_INTERVAL_MS);
-
-    return () => {
-      clearInterval(countdownTimer);
-      clearInterval(moveTimer);
-    };
-  }, [loading]);
-
-  const gameRef = useRef(game);
-  const directionIndexRef = useRef(directionIndex);
-
-  useEffect(() => {
-    gameRef.current = game;
-  }, [game]);
-
-  useEffect(() => {
-    directionIndexRef.current = directionIndex;
-  }, [directionIndex]);
 
   const foodMap = useMemo(() => {
     const map = new Map<string, Food>();
@@ -330,9 +101,10 @@ export default function CaterpillarVolumeSandboxDemo() {
   }, [game.worm]);
 
   const xpPercent = Math.round((game.xp / game.xp_max) * 100);
+  const butterflyPulse = game.stage === "butterfly";
 
   if (loading) {
-    return <div className="min-h-screen bg-zinc-950 text-zinc-100 grid place-items-center">正在加载统一数据…</div>;
+    return <div className="min-h-screen bg-zinc-950 text-zinc-100 grid place-items-center">正在加载统一状态…</div>;
   }
 
   return (
@@ -355,6 +127,7 @@ export default function CaterpillarVolumeSandboxDemo() {
 在探索过程中，若毛毛虫吞食 苹果，系统将自动执行 0.15 BNB 回购，并获得 10 点经验值；若吞食 香蕉，则自动执行 0.3 BNB 回购，并获得 15 点经验值。
 随着经验不断积累，当经验值达到 1000 时，生命周期将进入最终进化阶段：此前通过回购所获得的全部筹码将被 一次性销毁，毛毛虫 Agent 完成从幼体到高阶形态的跃迁，正式 破茧成蝶。`}
             </p>
+            {error ? <div className="mt-3 text-sm text-red-300">接口异常：{error}</div> : null}
           </div>
         </div>
 
@@ -447,7 +220,7 @@ export default function CaterpillarVolumeSandboxDemo() {
 
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
                   <div className="mb-2 flex items-center justify-between text-sm"><span className="text-zinc-400">经验值</span><span className="font-semibold text-fuchsia-300">{game.xp}/{game.xp_max}</span></div>
-                  <Progress value={xpPercent} className="h-3" />
+                  <Progress value={Math.round((game.xp / game.xp_max) * 100)} className="h-3" />
                   <div className="mt-2 text-xs text-zinc-500">经验达到 1000 后：全部筹码销毁，进入破茧成蝶阶段。</div>
                 </div>
 
@@ -458,7 +231,7 @@ export default function CaterpillarVolumeSandboxDemo() {
 
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
                   <div className="flex items-center justify-between text-sm"><span className="text-zinc-400">下次 Agent 决策倒计时</span><span className="font-semibold text-emerald-300">{game.stage !== "butterfly" ? `${game.seconds_until_move}s` : "已停止"}</span></div>
-                  <Progress value={((10 - game.seconds_until_move) / 10) * 100} className="mt-2 h-3" />
+                  <Progress value={game.stage !== "butterfly" ? ((10 - game.seconds_until_move) / 10) * 100 : 100} className="mt-2 h-3" />
                   <div className="mt-2 text-xs text-zinc-500">当前概念节奏：每 10 秒进行一次链上感应决策并移动 1 次</div>
                 </div>
               </CardContent>
