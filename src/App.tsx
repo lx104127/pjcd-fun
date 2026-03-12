@@ -132,12 +132,12 @@ export default function CaterpillarVolumeSandboxDemo() {
             </div>
 
             <a
-            href="https://x.com/pjcdfun"
+            href="https://x.com/FlapAgentChain"
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-900 text-white transition hover:border-zinc-500 hover:bg-zinc-800"
             aria-label="Open X profile"
-            title="@pjcdfun"
+            title="@FlapAgentChain"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
               <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.847h-7.406l-5.8-7.584-6.639 7.584H.474l8.6-9.83L0 1.153h7.594l5.243 6.932L18.901 1.153Zm-1.291 19.492h2.04L6.486 3.24H4.298L17.61 20.645Z"/>
