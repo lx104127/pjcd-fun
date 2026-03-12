@@ -111,25 +111,40 @@ export default function CaterpillarVolumeSandboxDemo() {
     <div className="min-h-screen w-full bg-zinc-950 p-6 text-zinc-100">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-3">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-300">
-              <Sparkles className="h-4 w-4" />
-              Agent 驱动 / 链上感应进化沙盒 Demo
-            </div>
-            <div className="mt-5 flex items-center gap-4">
-              <img src="./project-logo.jpg" alt="Project Logo" className="h-20 w-20 rounded-2xl border border-lime-300/30 object-cover shadow-lg shadow-lime-500/10" />
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">破茧成蝶 flap首个Agent链上生命体</h1>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-300">
+                <Sparkles className="h-4 w-4" />
+                Agent 驱动 / 链上感应进化沙盒 Demo
               </div>
-            </div>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 whitespace-pre-line">
-              {`毛毛虫 Agent 将以 10 秒为一个感知周期，持续监听代币的链上交易动态，并基于实时市场信号 自主决策下一次移动方向。由 Agent 独立判断生成
+              <div className="mt-5 flex items-center gap-4">
+                <img src="./project-logo.jpg" alt="Project Logo" className="h-20 w-20 rounded-2xl border border-lime-300/30 object-cover shadow-lg shadow-lime-500/10" />
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">破茧成蝶 flap首个Agent链上生命体</h1>
+                </div>
+              </div>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 whitespace-pre-line">
+                {`毛毛虫 Agent 将以 10 秒为一个感知周期，持续监听代币的链上交易动态，并基于实时市场信号 自主决策下一次移动方向。由 Agent 独立判断生成
 在探索过程中，若毛毛虫吞食 苹果，系统将自动执行 0.15 BNB 回购，并获得 10 点经验值；若吞食 香蕉，则自动执行 0.3 BNB 回购，并获得 15 点经验值。
 随着经验不断积累，当经验值达到 1000 时，生命周期将进入最终进化阶段：此前通过回购所获得的全部筹码将被 一次性销毁，毛毛虫 Agent 完成从幼体到高阶形态的跃迁，正式 破茧成蝶。`}
-            </p>
-            {error ? <div className="mt-3 text-sm text-red-300">接口异常：{error}</div> : null}
-          </div>
+              </p>
+              {error ? <div className="mt-3 text-sm text-red-300">接口异常：{error}</div> : null}
+            </div>
+
+            <a
+            href="https://x.com/pjcdfun"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-900 text-white transition hover:border-zinc-500 hover:bg-zinc-800"
+            aria-label="Open X profile"
+            title="@pjcdfun"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
+              <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.847h-7.406l-5.8-7.584-6.639 7.584H.474l8.6-9.83L0 1.153h7.594l5.243 6.932L18.901 1.153Zm-1.291 19.492h2.04L6.486 3.24H4.298L17.61 20.645Z"/>
+            </svg>
+          </a>
         </div>
+      </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_420px]">
           <Card className="rounded-3xl border-zinc-800 bg-zinc-900/80 shadow-2xl shadow-black/20">
