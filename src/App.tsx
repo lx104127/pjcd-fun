@@ -271,8 +271,6 @@ export default function CaterpillarVolumeSandboxDemo() {
 
       if (hitFood) {
         const meta = FOOD_TYPES[hitFood.type];
-        const tail = current.worm[current.worm.length - 1];
-        nextWorm = [...nextWorm, tail];
         nextFoods = nextFoods.filter((food) => food.id !== hitFood.id);
         nextBuyback = Number((nextBuyback + meta.buyback).toFixed(2));
         nextXp = Math.min(XP_MAX, nextXp + meta.xp);
@@ -350,7 +348,6 @@ export default function CaterpillarVolumeSandboxDemo() {
               <img src="./project-logo.jpg" alt="Project Logo" className="h-20 w-20 rounded-2xl border border-lime-300/30 object-cover shadow-lg shadow-lime-500/10" />
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">破茧成蝶 flap首个Agent链上生命体</h1>
-                <div className="mt-2 text-sm text-emerald-300">全站统一状态：{syncStatus}</div>
               </div>
             </div>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 whitespace-pre-line">
